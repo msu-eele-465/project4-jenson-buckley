@@ -4,6 +4,7 @@
 
 char tx_buff[100];
 unsigned int index = 0;
+unsigned int message_length = 0;
 
 int main(void)
 {
@@ -24,8 +25,8 @@ int main(void)
 
     while (true)
     {
-        char message[] = {"test"};
-        Tx(0x55, message, tx_buff);
+        char message[] = {0xFF, 0xF, 0x55};
+        Tx(0x55, message, tx_buff, &message_length);
         P1OUT ^= BIT0;
         // Delay for 100000*(1/MCLK)=0.1s
         __delay_cycles(100000);
@@ -36,6 +37,6 @@ int main(void)
 __interrupt void EUSCI_B0_I2C_ISR(void) {
     UCB0TXBUF = tx_buff[index];     // runs when TX is ready for data
                                     // happens when ACK is received
-    if (index < sizeof(tx_buff) - 1) { index++; }
+    if (index < message_length - 1) { index++; }
     else { index = 0; }
 }

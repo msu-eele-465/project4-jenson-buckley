@@ -4,7 +4,7 @@
 /*
 NOTES:
 
- - this assumes that an ISR is included as follows for a MASTER (which references a global character array tx_buff and global int index):
+ - this assumes that an ISR is included as follows for a MASTER (which references a global character array tx_buff and global int index and global int message_length):
 #pragma vector=EUSCI_B0_VECTOR
 __interrupt void EUSCI_B0_I2C_ISR(void) {
     UCB0TXBUF = tx_buff[index];     // runs when TX is ready for data
@@ -62,10 +62,11 @@ void setupMasterI2C() {
 /*
 Set the slave address, message length, enable interrupts, and generate start condition. Call to transmit a message.
 */
-void Tx(int slave_addr, char message[], char tx_buff[]) {
+void Tx(int slave_addr, char message[], char tx_buff[], int *message_length) {
     strcpy(tx_buff, message);       // update TX buffer
     UCB0I2CSA = slave_addr;         // set slave address
     UCB0TBCNT = sizeof(message);    // send all bytes of data
+    *message_length = sizeof(message);
     UCB0IE |= UCTXIE0;              // enable TX interrupt
     UCB0CTLW0 |= UCTXSTT;           // generate start condition
 }

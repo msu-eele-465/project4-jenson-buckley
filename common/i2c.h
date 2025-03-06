@@ -12,5 +12,5 @@
 
 // Function declarations
 void setupMasterI2C(void);
-void Tx(int slave_addr, char message[], char tx_buff[]);
+void Tx(int slave_addr, char message[], char tx_buff[], int *message_length);
 void setupSlaveI2C(int slave_addr, int bytes);
