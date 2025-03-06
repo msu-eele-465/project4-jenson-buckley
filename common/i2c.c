@@ -1,9 +1,10 @@
 #include <string.h>
+#include <msp430fr2355.h>
 
 /*
 NOTES:
 
- - this assumes that an ISR is included as follows for a MASTER (which references a global character array tx_buff):
+ - this assumes that an ISR is included as follows for a MASTER (which references a global character array tx_buff and global int index):
 #pragma vector=EUSCI_B0_VECTOR
 __interrupt void EUSCI_B0_I2C_ISR(void) {
     UCB0TXBUF = tx_buff[index];     // runs when TX is ready for data
@@ -38,6 +39,8 @@ WDTCTL = WDTPW | WDTHOLD;	// stop watchdog timer
 Setup a 100kHz I2C Master on P1.3 (SCL) and P1.2 (SDA). Note that slave address and message length are NOT set.
 */
 void setupMasterI2C() {
+    UCB0CTLW0 |= UCSWRST;       // put into SW reset
+
     UCB0CTLW0 |= UCSSEL_3;      // choose BRCLK=SMCLK=1MHz
     UCB0BRW = 10;               // divide by 10 for SCL=100kHz
 
@@ -45,12 +48,14 @@ void setupMasterI2C() {
     UCB0CTLW0 |= UCMST;         // put into master mode
     UCB0CTLW0 |= UCTR;          // put into tx mode
     UCB0CTLW1 |= UCASTP_2;      // auto stop when UCB0TBCNT
-    UCB0TBCNT = sizeof(DATE);   // send all bytes of data
 
     P1SEL1 &=~ BIT3;    // P1.3 = SCL
     P1SEL0 |= BIT3;
     P1SEL1 &=~ BIT2;    // P1.2 = SDA
     P1SEL0 |= BIT2;
+
+    UCB0CTLW0 &= ~UCSWRST;       // take out of SW reset
+
 }
 
 
