@@ -1,7 +1,7 @@
 #include <msp430fr2355.h>
 
 /*
-NOTES:
+NOTES: Assumes global char lastKey initialized to  'X'
 
 - ensure global interrupts are enabled, low power mode is disabled, and watchdog timer is disabled:
 __enable_interrupt();       // enable global interrupts
