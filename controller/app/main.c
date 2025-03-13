@@ -60,7 +60,7 @@ int main(void)
     setupRGBLED();
     setupKeypad();
     setupMasterI2C();
-    char message[] = {0x0};
+    char message[] = {0x0, 0x8};
 
     while (true)
     {
@@ -73,7 +73,7 @@ int main(void)
             // send button press to both slaves
             message[0] = key_val;
             Tx(SA_LEDBAR, message, tx_buff, &message_length);
-            Tx(SA_LCD, message, tx_buff, &message_length);
+            //Tx(SA_LCD, message, tx_buff, &message_length);
 
             if (state == 0) {
                 if (key_val=='1') {
