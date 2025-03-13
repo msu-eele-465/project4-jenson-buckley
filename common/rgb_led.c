@@ -56,9 +56,3 @@ void setupRGBLED(void) {
     TB3CCTL0 |= CCIE;           // Enable capture compare
     TB3CCTL0 &= ~CCIFG;         // Clear IFG
 }
-
-void updateHex(int hex_code) {
-    rPWM = 0xFF & (hex_code >> 4);
-    gPWM = 0xFF & (hex_code >> 2);
-    bPWM = 0xFF & hex_code;
-}

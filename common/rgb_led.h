@@ -11,4 +11,3 @@
 
 // Function declarations
 void setupRGBLED(void);
-void updateHex(int);

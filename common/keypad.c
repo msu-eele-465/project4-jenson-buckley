@@ -11,11 +11,11 @@ WDTCTL = WDTPW | WDTHOLD;	// stop watchdog timer
 
 /*
 Setup the keypad with the columns as output and rows as inputs.
-    ...columns: P1.4, P5.3, P5.1, P5.0
-    ...rows:    P5.4, P1.1, P3.5, 3.1
+    ...rows: P1.4, P5.3, P5.1, P5.0
+    ...columns:    P5.4, P1.1, P3.5, 3.1
 */
 void setupKeypad() {
-    // columns as outputs on P1.4, P5.3, P5.1, P5.0 initialized to 0
+    // rows as outputs on P1.4, P5.3, P5.1, P5.0 initialized to 0
     P1DIR |= BIT4;
     P5DIR |= BIT3;
     P5DIR |= BIT1;
@@ -24,7 +24,7 @@ void setupKeypad() {
     P5OUT &= ~BIT3;
     P5OUT &= ~BIT1;
     P5OUT &= ~BIT0;
-    // rows as inputs pulled down internally on P5.4, P1.1, P3.5, 3.1
+    // cols as inputs pulled down internally on P5.4, P1.1, P3.5, 3.1
     P5DIR &= ~BIT4;     // inputs
     P1DIR &= ~BIT1;
     P3DIR &= ~BIT5;
@@ -40,9 +40,29 @@ void setupKeypad() {
 }
 
 /*
+Check for inputs for cols 1-4 (P5.4, P1.1, P3.5, 3.1).
+
+Returns 0-3 for a pressed col (first pressed col) or -1 if nothing is pressed
+*/
+int checkCols() {
+    if (P5IN & BIT4) {
+        return 0;
+    } else if (P1IN & BIT1) {
+        return 1;
+    } else if (P3IN & BIT5) {
+        return 2;
+    } else if (P3IN & BIT1) {
+        return 3;
+    } else {
+        return -1;
+    }
+}
+
+
+/*
 Read keypad input and return the corrisponding character ('X' for nothing)
 */
-char readKeypad() {
+char readKeypad(lastKey) {
     // columns on P1.4, P5.3, P5.1, P5.0
     // rows on P5.4, P1.1, P3.5, 3.1
 
@@ -55,36 +75,35 @@ char readKeypad() {
 
     char pressed = 'X';
 
-    // check col 1
+    // check row 1
     P1OUT |= BIT4;
-    int row = checkRows();
-    if (row!=-1) {
-        pressed = keys[row][0];
+    int col = checkCols();
+    if (col!=-1) {
+        pressed = keys[0][col];
     } 
     P1OUT &= ~BIT4;
 
-    // check col 2
+    // check row 2
     P5OUT |= BIT3;
-    row = checkRows();
-    row = checkRows();
-    if (row!=-1) {
-        pressed =  keys[row][1];
+    col = checkCols();
+    if (col!=-1) {
+        pressed =  keys[1][col];
     } 
     P5OUT &= ~BIT3;
 
-    // check col 3
+    // check row 3
     P5OUT |= BIT1;
-    row = checkRows();
-    if (row!=-1) {
-        pressed =  keys[row][2];
+    col = checkCols();
+    if (col!=-1) {
+        pressed =  keys[2][col];
     }
     P5OUT &= ~BIT1;
 
-    // check col 4
+    // check row 4
     P5OUT |= BIT0;
-    row = checkRows();
-    if (row!=-1) {
-        pressed =  keys[row][3];
+    col = checkCols();
+    if (col!=-1) {
+        pressed =  keys[3][col];
     }
     P5OUT &= ~BIT0;
 
@@ -93,24 +112,5 @@ char readKeypad() {
         return pressed;
     } else {
         return 'X';
-    }
-}
-
-/*
-Check for inputs for rows 1-4 (P5.4, P1.1, P3.5, 3.1).
-
-Returns 0-3 for a pressed row (first pressed row) or -1 if nothing is pressed
-*/
-int checkRows() {
-    if (P5IN & BIT4) {
-        return 0;
-    } else if (P1IN & BIT1) {
-        return 1;
-    } else if (P3IN & BIT5) {
-        return 2;
-    } else if (P3IN & BIT1) {
-        return 3;
-    } else {
-        return -1;
     }
 }

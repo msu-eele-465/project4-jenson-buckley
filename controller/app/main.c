@@ -15,16 +15,20 @@
 #define RGB_PAT7 0x808080
 
 // Setup RGB LED
-setupRGBLED();
-int rPWM = 0;
-int gPWM = 0;
-int bPWM = 0;
-int countPWM = 0;
+int rPWM;
+int gPWM;
+int bPWM;
+int countPWM;
+void updateHex(int);
 
-// TODO: setup I2C
+// Setup I2C Master on P1.2 (SDA) and P1.3 (SCL)
+char tx_buff[100];
+unsigned int index;
+unsigned int message_length;
+#define SA_LEDBAR 0x45
+#define SA_LCD 0x55
 
 // Setup keypad
-setupKeypad();
 char lastKey = 'X';
 
 // STATE
@@ -46,13 +50,31 @@ int main(void)
     // Disable low-power mode / GPIO high-impedance
     PM5CTL0 &= ~LOCKLPM5;
 
+    // Setup
+    int rPWM = 0;
+    int gPWM = 0;
+    int bPWM = 0;
+    int countPWM = 0;
+    unsigned int index = 0;
+    unsigned int message_length = 0;
+    setupRGBLED();
+    setupKeypad();
+    setupMasterI2C();
+    char message[] = {0x0};
+
     while (true)
     {
         P1OUT ^= BIT0;
 
-        char key_val = readKeypad();
+        char key_val = readKeypad(lastKey);
 
         if (key_val != 'X') {
+
+            // send button press to both slaves
+            message[0] = key_val;
+            Tx(SA_LEDBAR, message, tx_buff, &message_length);
+            Tx(SA_LCD, message, tx_buff, &message_length);
+
             if (state == 0) {
                 if (key_val=='1') {
                     state = 1;
@@ -96,8 +118,8 @@ int main(void)
 
                 // otherwise
                 } else {
-                    else if (key_val=='0') {
-                    updateHex(RGB_PAT0);
+                    if (key_val=='0') {
+                        updateHex(RGB_PAT0);
                     } else if (key_val=='1') {
                         updateHex(RGB_PAT1);
                     } else if (key_val=='2') {
@@ -125,8 +147,20 @@ int main(void)
     }
 }
 
+void updateHex(int hex_code) {
+    rPWM = 0xFF & (hex_code >> 4);
+    gPWM = 0xFF & (hex_code >> 2);
+    bPWM = 0xFF & hex_code;
+}
 
-// TODO: master I2C ISR
+// I2C MASTER
+#pragma vector=EUSCI_B0_VECTOR
+__interrupt void EUSCI_B0_I2C_ISR(void) {
+    UCB0TXBUF = tx_buff[index];     // runs when TX is ready for data
+                                    // happens when ACK is received
+    if (index < message_length - 1) { index++; }
+    else { index = 0; }
+}
 
 // RGB LED PWM Control
 #pragma vector = TIMER3_B0_VECTOR
