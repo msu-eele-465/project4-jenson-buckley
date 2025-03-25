@@ -10,6 +10,6 @@
 } CommonStruct;*/
 
 // Function declarations
-void setupKeypad(char);
-char readKeypad(void);
+void setupKeypad();
+char readKeypad(char);
 int checkCols(void);
