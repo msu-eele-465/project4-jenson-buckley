@@ -22,10 +22,10 @@ int countPWM;
 void updateHex(int);
 
 // Setup I2C Master on P1.2 (SDA) and P1.3 (SCL)
-char tx_buff[100];
+char tx_buff[100] = {0};
 unsigned int index;
 unsigned int message_length;
-#define SA_LEDBAR 0x45
+#define SA_LEDBAR 0x55
 #define SA_LCD 0x55
 
 // Setup keypad
@@ -51,16 +51,16 @@ int main(void)
     PM5CTL0 &= ~LOCKLPM5;
 
     // Setup
-    int rPWM = 0;
-    int gPWM = 0;
-    int bPWM = 0;
-    int countPWM = 0;
-    unsigned int index = 0;
-    unsigned int message_length = 0;
+    rPWM = 0;
+    gPWM = 0;
+    bPWM = 0;
+    countPWM = 0;
+    index = 0;
+    message_length = 0;
     setupRGBLED();
     setupKeypad();
     setupMasterI2C();
-    char message[] = {0x0, 0x8};
+    char message[] = {0x0};
 
     while (true)
     {
@@ -70,12 +70,10 @@ int main(void)
 
         if (key_val != 'X') {
 
-            // send button press to both slaves
-            message[0] = key_val;
-            Tx(SA_LEDBAR, message, tx_buff, &message_length);
-            //Tx(SA_LCD, message, tx_buff, &message_length);
-
             if (state == 0) {
+                // turn led bar off
+                message[0] = 9;
+                Tx(SA_LEDBAR, message, tx_buff, &message_length);
                 if (key_val=='1') {
                     state = 1;
                     updateHex(RGB_UNLOCKING);
@@ -119,20 +117,44 @@ int main(void)
                 // otherwise
                 } else {
                     if (key_val=='0') {
+                        // turn led bar to pattern 0
+                        message[0] = 0;
+                        Tx(SA_LEDBAR, message, tx_buff, &message_length);
                         updateHex(RGB_PAT0);
                     } else if (key_val=='1') {
+                        // turn led bar to pattern 1
+                        message[0] = 1;
+                        Tx(SA_LEDBAR, message, tx_buff, &message_length);
                         updateHex(RGB_PAT1);
                     } else if (key_val=='2') {
+                        // turn led bar to pattern 2
+                        message[0] = 2;
+                        Tx(SA_LEDBAR, message, tx_buff, &message_length);
                         updateHex(RGB_PAT2);
                     } else if (key_val=='3') {
+                        // turn led bar to pattern 3
+                        message[0] = 3;
+                        Tx(SA_LEDBAR, message, tx_buff, &message_length);
                         updateHex(RGB_PAT3);
                     } else if (key_val=='4') {
+                        // turn led bar to pattern 4
+                        message[0] = 4;
+                        Tx(SA_LEDBAR, message, tx_buff, &message_length);
                         updateHex(RGB_PAT4);
                     } else if (key_val=='5') {
+                        // turn led bar to pattern 5
+                        message[0] = 5;
+                        Tx(SA_LEDBAR, message, tx_buff, &message_length);
                         updateHex(RGB_PAT5);
                     } else if (key_val=='6') {
+                        // turn led bar to pattern 6
+                        message[0] = 6;
+                        Tx(SA_LEDBAR, message, tx_buff, &message_length);
                         updateHex(RGB_PAT6);
                     } else if (key_val=='7') {
+                        // turn led bar to pattern 7
+                        message[0] = 7;
+                        Tx(SA_LEDBAR, message, tx_buff, &message_length);
                         updateHex(RGB_PAT7);
                     }
                     // TODO: send key press to LCD
