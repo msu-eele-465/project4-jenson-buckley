@@ -9,15 +9,19 @@
 
 // I2C Varibles
 #define I2C_SLAVE_ADDR 0x48
-#define bytes 0x1;
+#define I2C_MSG_BYTES 0x1
 volatile unsigned char received_data = 0;
 
 // LCD Messages
 char *messages[] = {
-    "Msg 1: Hello",
-    "Msg 2: World",
-    "Msg 3: MSP430",
-    "Msg 4: I2C LCD"
+    "Static",
+    "Toggle",
+    "Up Counter",
+    "In and Out",
+    "Down Counter",
+    "Rotate Left",
+    "Rotate 7 Right",
+    "Fill Left"
 };
 
 // Delay Function
@@ -34,6 +38,7 @@ void lcd_enable_pulse() {
 
 // Command Write Function
 void lcd_write_command(unsigned char cmd) {
+    enable_lcd();
     P2OUT &= ~LCD_RS;  // RS = 0 for command
     P2OUT &= ~LCD_RW;  // RW = 0 for write
     LCD_DATA = cmd;    // Write command to data bus
@@ -43,6 +48,7 @@ void lcd_write_command(unsigned char cmd) {
 
 // Data Write Function
 void lcd_write_data(unsigned char data) {
+    enable_lcd();
     P2OUT |= LCD_RS;   // RS = 1 for data
     P2OUT &= ~LCD_RW;  // RW = 0 for write
     LCD_DATA = data;   // Write data to data bus
@@ -58,6 +64,7 @@ void lcd_clear(){
 
 // LCD Initialization
 void lcd_init() {
+    enable_lcd();
     P2DIR |= LCD_RS | LCD_RW | LCD_E;
     P1DIR |= 0xFF;   // Set Port 1 as output for data bus
 
@@ -92,13 +99,24 @@ void setupSlaveI2C(int slave_addr, int bytes) {
     UCB0CTLW1 |= UCASTP_2;      // auto stop when UCB0TBCNT
     UCB0TBCNT = bytes;          // receive all bytes of data
 
+    enable_i2c();
+
+    UCB0CTLW0 &= ~UCSWRST;       // take out of SW reset
+    UCB0IE |= UCRXIE0;          // enable Rx interrupts
+}
+
+// Switch to I2C Mode
+void enable_i2c(){
     P1SEL1 &=~ BIT3;    // P1.3 = SCL
     P1SEL0 |= BIT3;
     P1SEL1 &=~ BIT2;    // P1.2 = SDA
     P1SEL0 |= BIT2;
+}
 
-    UCB0CTLW0 &= ~UCSWRST;       // take out of SW reset
-    UCB0IE |= UCRXIE0;          // enable Rx interrupts
+//Switch to LCD Mode
+void enable_lcd() {
+    P1SEL0 &= ~(BIT2 | BIT3); // Disable I2C function
+    P1DIR |= BIT2 | BIT3;     // Set as outputs for LCD
 }
 
 // Process Received I2C Data
@@ -117,6 +135,15 @@ void processReceivedData() {
         case 3:
             lcd_display_string(messages[3]);
             break;
+        case 4:
+            lcd_display_string(messages[4]);
+            break;
+        case 5:
+            lcd_display_string(messages[5]);
+            break;
+        case 6:
+            lcd_display_string(messages[6]);
+            break;
         default:
             lcd_display_string("Invalid Input");
             break;
@@ -129,12 +156,9 @@ int main(void) {
     PM5CTL0 &= ~LOCKLPM5;     // Unlock GPIO ports
 
     lcd_init();               // Initialize LCD
-    lcd_display_string("Hello World"); // Display sample text
+    setupSlaveI2C(I2C_SLAVE_ADDR, I2C_MSG_BYTES); // Set up I2C slave
 
-    delay(1000);
-    lcd_clear();
-    lcd_display_string("Hello Peter"); // Display sample text
-
+    __enable_interrupt();     // Enable global interrupts
 
     while (1) {
     }
