@@ -1,4 +1,3 @@
-#include <string.h>
 #include <msp430fr2355.h>
 
 /*
@@ -63,7 +62,7 @@ void setupMasterI2C() {
 Set the slave address, message length, enable interrupts, and generate start condition. Call to transmit a message.
 */
 void Tx(int slave_addr, char message[], char tx_buff[], int *message_length) {
-    strcpy(tx_buff, message);       // update TX buffer
+    tx_buff = message;       // update TX buffer
     UCB0I2CSA = slave_addr;         // set slave address
     UCB0TBCNT = sizeof(message);    // send all bytes of data
     *message_length = sizeof(message);
