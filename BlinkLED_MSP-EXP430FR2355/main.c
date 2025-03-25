@@ -1,139 +1,70 @@
-// interfacing 16x2 LCD for MSP430FR2355
-// Original Author: Luan Ferreira Reis de Jesus 
-// Modified for use on the FR2355 by: Peter Buckley
-
-// interfacing 16x2 LCD for MSP430FR2355
-// Author: Luan Ferreira Reis de Jesus (Modified for FR2355)
-
 #include <msp430.h>
 
-// define RS high
-#define DR P1OUT |= BIT0
+// Pin Definitions
+#define LCD_RS BIT0     // Register Select
+#define LCD_RW BIT1     // Read/Write
+#define LCD_E  BIT2     // Enable
+#define LCD_DATA P1OUT  // Data bus on Port 2
 
-// define RS low
-#define CR P1OUT &= ~BIT0
+// Delay Function
+void delay(unsigned int count) {
+    while(count--) __delay_cycles(1000);
+}
 
-// define Read signal R/W = 1 for reading
-#define READ P1OUT |= BIT1 
+// Enable Pulse
+void lcd_enable_pulse() {
+    P2OUT |= LCD_E;
+    delay(2);
+    P2OUT &= ~LCD_E;
+}
 
-// define Write signal R/W = 0 for writing
-#define WRITE P1OUT &= ~BIT1 
+// Command Write Function
+void lcd_write_command(unsigned char cmd) {
+    P2OUT &= ~LCD_RS;  // RS = 0 for command
+    P2OUT &= ~LCD_RW;  // RW = 0 for write
+    LCD_DATA = cmd;    // Write command to data bus
+    lcd_enable_pulse();
+    delay(50);         // Command execution delay
+}
 
-// define Enable high signal
-#define ENABLE_HIGH P1OUT |= BIT2 
+// Data Write Function
+void lcd_write_data(unsigned char data) {
+    P2OUT |= LCD_RS;   // RS = 1 for data
+    P2OUT &= ~LCD_RW;  // RW = 0 for write
+    LCD_DATA = data;   // Write data to data bus
+    lcd_enable_pulse();
+    delay(50);         // Data write delay
+}
 
-// define Enable Low signal
-#define ENABLE_LOW P1OUT &= ~BIT2 
+// LCD Initialization
+void lcd_init() {
+    P2DIR |= LCD_RS | LCD_RW | LCD_E;
+    P1DIR |= 0xFF;   // Set Port 2 as output for data bus
 
-void configure_clocks()
-{
+    delay(15000);    // Power-on delay
+
+    lcd_write_command(0x38); // Function set: 8-bit, 2 lines, 5x8 dots
+    lcd_write_command(0x0C); // Display ON, Cursor OFF
+    lcd_write_command(0x01); // Clear display
+    delay(2000);             // Delay for clear command
+    lcd_write_command(0x06); // Entry mode set: Increment cursor
+}
+
+// Display String on LCD
+void lcd_display_string(char *str) {
+    while(*str) {
+        lcd_write_data(*str++);
+    }
+}
+
+// Main Program
+int main(void) {
     WDTCTL = WDTPW | WDTHOLD; // Stop watchdog timer
-}
-void delay_us(unsigned int us)
-{
-    while (us--)
-    {
-        __delay_cycles(1); // 1 cycle per microsecond at 1MHz
-    }
-}
+    PM5CTL0 &= ~LOCKLPM5;     // Unlock GPIO ports
 
-void delay_ms(unsigned int ms)
-{
-    while (ms--)
-    {
-        __delay_cycles(1000); // 1000 cycles per millisecond at 1MHz
-    }
-}
+    lcd_init();               // Initialize LCD
+    lcd_display_string("Hello World"); // Display sample text
 
-void data_write(void)
-{
-    ENABLE_HIGH;
-    delay_ms(5);
-    ENABLE_LOW;
-}
-
-void send_data(unsigned char data)
-{
-    unsigned char higher_nibble = 0xF0 & (data);
-    unsigned char lower_nibble = 0xF0 & (data << 4);
-    
-    delay_us(200);
-    
-    WRITE;
-    DR;
-    
-    // send higher nibble
-    P1OUT = (P1OUT & 0x0F) | higher_nibble; 
-    data_write();
-    
-    // send lower nibble
-    P1OUT = (P1OUT & 0x0F) | lower_nibble; 
-    data_write();
-}
-
-void send_string(char *s)
-{
-    while(*s)
-    {
-        send_data(*s);
-        s++;
-    }
-}
-
-void send_command(unsigned char cmd)
-{
-    unsigned char higher_nibble = 0xF0 & cmd;
-    unsigned char lower_nibble = 0xF0 & (cmd << 4);
-    
-    WRITE;
-    CR;
-    
-    // send higher nibble
-    P1OUT = (P1OUT & 0x0F) | higher_nibble; 
-    data_write();
-    
-    // send lower nibble
-    P1OUT = (P1OUT & 0x0F) | lower_nibble; 
-    data_write();
-}
-
-void lcd_init(void)
-{
-    P1DIR |= 0xFF;
-    P1OUT &= 0x00;
-    
-    delay_ms(15);
-    send_command(0x33);
-    
-    delay_us(200);
-    send_command(0x32);
-    
-    delay_us(40);
-    send_command(0x28); // 4-bit mode
-    
-    delay_us(40);
-    send_command(0x0E); // Display on, cursor on
-    
-    delay_us(40);
-    send_command(0x01); // Clear screen
-    
-    delay_us(40);
-    send_command(0x06); // Increment cursor
-    
-    delay_us(40);
-    send_command(0x80); // Set cursor to row 1 column 1
-}
-
-int main(void)
-{
-    configure_clocks();
-    lcd_init();
-    
-    send_string("Hello world!");
-    send_command(0xC0);
-    send_string("MSP430FR2355 LCD");
-    
-    while (1)
-    {
+    while (1) {
     }
 }
