@@ -1,5 +1,8 @@
 #include <msp430fr2355.h>
 #include <stdbool.h>
+#include "i2c.h"
+#include "keypad.h"
+#include "rgb_led.h"
 
 // RGB LED colors
 #define RGB_LOCKED 0xFF0000
@@ -56,7 +59,7 @@ int main(void)
     bPWM = 0;
     countPWM = 0;
     index = 0;
-    message_length = 0;
+    message_length = 1;
     setupRGBLED();
     setupKeypad();
     setupMasterI2C();
@@ -65,6 +68,8 @@ int main(void)
     while (true)
     {
         P1OUT ^= BIT0;
+        message[0] = 9;
+        Tx(SA_LEDBAR, message, tx_buff, &message_length);
 
         char key_val = readKeypad(lastKey);
 
