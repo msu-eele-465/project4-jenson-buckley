@@ -81,7 +81,7 @@ int main(void)
     setPattern(7);
 
     // setup I2C Slave with SA=0x55
-    //setupSlaveI2C(0x55, RX_BUFF_SIZE);
+    setupSlaveI2C(0x55, RX_BUFF_SIZE);
 
     while (true)
     {
@@ -175,7 +175,7 @@ __interrupt void ISR_TB3_CCR0(void)
     TB1CCTL0 &= ~CCIFG;  // clear CCR0 IFG
 }
 
-/*
+
 #pragma vector=EUSCI_B0_VECTOR
 __interrupt void EUSCI_B0_I2C_ISR(void) {
     // only for RXIFG0
@@ -189,4 +189,3 @@ __interrupt void EUSCI_B0_I2C_ISR(void) {
         setPattern(Received[0]);
     }
 }
-*/
