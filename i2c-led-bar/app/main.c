@@ -83,6 +83,7 @@ int main(void)
     // setup I2C Slave with SA=0x55
     setupSlaveI2C(0x55, RX_BUFF_SIZE);
 
+
     while (true)
     {
         P2OUT ^= BIT0;
@@ -157,6 +158,34 @@ void setPattern(int a) {
     
 }
 
+/*
+Setup a 100kHz I2C slave on P1.3 (SCL) and P1.2 (SDA). Pass slave address (7 bits) and number of bytes to receive per Rx.
+Note the message length is NOT set.
+*/
+void setupSlaveI2C(int slave_addr, int bytes) {
+    UCB0CTLW0 |= UCSWRST;       // put into SW reset
+
+    UCB0CTLW0 |= UCMODE_3;      // put into I2C mode
+    UCB0CTLW0 &= ~UCMST;        // put into slave mode
+    UCB0CTLW0 |= UCMODE0;       // put into slave mode
+    UCB0CTLW0 |= UCSYNC;        // put into slave mode
+    UCB0CTLW0 &= ~UCTR;         // put into rx mode
+    UCB0I2COA0 &= ~0x87FF;      // reset the slave address register (don't touch bits 14-11 since they are reserved)
+    UCB0I2COA0 |= slave_addr;   // set slave address
+    UCB0I2COA0 |= UCOAEN;       // enable interrupts for slave address
+
+    UCB0CTLW1 |= UCASTP_2;      // auto stop when UCB0TBCNT
+    UCB0TBCNT = bytes;          // receive all bytes of data
+
+    P1SEL1 &=~ BIT3;    // P1.3 = SCL
+    P1SEL0 |= BIT3;
+    P1SEL1 &=~ BIT2;    // P1.2 = SDA
+    P1SEL0 |= BIT2;
+
+    UCB0CTLW0 &= ~UCSWRST;       // take out of SW reset
+    UCB0IE |= UCRXIE0;          // enable Rx interrupts
+}
+
 // Timer for Led bar
 #pragma vector = TIMER1_B0_VECTOR
 __interrupt void ISR_TB3_CCR0(void)
@@ -174,7 +203,6 @@ __interrupt void ISR_TB3_CCR0(void)
     stepIndex = (stepIndex + 1) % seqLength; // Update step index
     TB1CCTL0 &= ~CCIFG;  // clear CCR0 IFG
 }
-
 
 #pragma vector=EUSCI_B0_VECTOR
 __interrupt void EUSCI_B0_I2C_ISR(void) {
