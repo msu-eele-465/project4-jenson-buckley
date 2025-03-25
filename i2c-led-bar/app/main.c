@@ -77,7 +77,7 @@ int main(void)
     __enable_interrupt();
 
     //-- Setup patterns
-    setupLeds();
+    setupLeds(); // NOTE: this doesn't seem to work if the LED bar is hooked up, so just pull it out, let it setup the pins, the drop it back in
     setPattern(7);
 
     // setup I2C Slave with SA=0x55
