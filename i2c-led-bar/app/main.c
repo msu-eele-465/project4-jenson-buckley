@@ -194,5 +194,6 @@ __interrupt void EUSCI_B0_I2C_ISR(void) {
         } else {
             Data_Cnt = 0;
         }
+        setPattern(Received[0]);
     }
 }
