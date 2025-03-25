@@ -4,7 +4,7 @@
 #define LCD_RS BIT0     // Register Select
 #define LCD_RW BIT1     // Read/Write
 #define LCD_E  BIT2     // Enable
-#define LCD_DATA P1OUT  // Data bus on Port 2
+#define LCD_DATA P1OUT  // Data bus on Port 1
 
 // Delay Function
 void delay(unsigned int count) {
@@ -39,14 +39,13 @@ void lcd_write_data(unsigned char data) {
 // LCD Initialization
 void lcd_init() {
     P2DIR |= LCD_RS | LCD_RW | LCD_E;
-    P1DIR |= 0xFF;   // Set Port 2 as output for data bus
+    P1DIR |= 0xFF;   // Set Port 1 as output for data bus
 
-    delay(15000);    // Power-on delay
+    delay(50);    // Power-on delay
 
     lcd_write_command(0x38); // Function set: 8-bit, 2 lines, 5x8 dots
     lcd_write_command(0x0C); // Display ON, Cursor OFF
-    lcd_write_command(0x01); // Clear display
-    delay(2000);             // Delay for clear command
+    lcd_clear();
     lcd_write_command(0x06); // Entry mode set: Increment cursor
 }
 
@@ -57,6 +56,12 @@ void lcd_display_string(char *str) {
     }
 }
 
+// Clear LCD
+void lcd_clear(){
+    lcd_write_command(0x01); // Clear display
+    delay(50);             // Delay for clear command
+}
+
 // Main Program
 int main(void) {
     WDTCTL = WDTPW | WDTHOLD; // Stop watchdog timer
@@ -64,6 +69,11 @@ int main(void) {
 
     lcd_init();               // Initialize LCD
     lcd_display_string("Hello World"); // Display sample text
+
+    delay(1000);
+    lcd_clear();
+    lcd_display_string("Hello Peter"); // Display sample text
+
 
     while (1) {
     }
