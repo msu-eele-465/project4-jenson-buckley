@@ -23,10 +23,6 @@ int bPWM;
 int countPWM;
 void updateHex(int);
 
-// Device Addresses
-#define SA_LEDBAR 0x55
-#define SA_LCD 0x40
-
 // Setup keypad
 char lastKey = 'X';
 
@@ -62,7 +58,7 @@ void i2c_master_setup(){
 // Integer send function (for led bar)
 void i2c_send_int(unsigned char data) {
     while (UCB0CTLW0 & UCTXSTP);          // Wait for STOP if needed
-    UCB0I2CSA = 0x40;                     // Slave address
+    UCB0I2CSA = 0x45;                     // Slave address
 
     UCB0TBCNT = 1;                        // Transmit 1 byte
     UCB0CTLW0 |= UCTXSTT;                // Generate START
@@ -129,11 +125,14 @@ int main(void)
         char key_val = readKeypad(lastKey);
 
         if (key_val != 'X') {
-
+            
             if (state == 0) {
-                // turn led bar off
-                message[0] = 9;
-                Tx(SA_LEDBAR, message, tx_buff, &message_length);
+                // DAVID: this is how you use i2c commands
+                // 86 sending the key press just send the pattern
+                // Also 86 sending the base period
+                // Also 86 changing curson blink (I suck but did some things to get extra credit)
+                i2c_send_int(0)          // Sets pattern to 0 on led bar         
+                i2c_send_msg("Static\n") // Sends messag eto lcd needs /n, updates imediatly.
                 if (key_val=='1') {
                     state = 1;
                     updateHex(RGB_UNLOCKING);
