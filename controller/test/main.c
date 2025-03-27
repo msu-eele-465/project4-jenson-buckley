@@ -21,8 +21,8 @@ void i2c_master_setup() {
     __delay_cycles(10000);               // Setup settle delay
 }
 
-// I2C Send Function (1 byte to slave address 0x40)
-void i2c_send(unsigned char data) {
+// Integer send function (for led bar)
+void i2c_send_int(unsigned char data) {
     while (UCB0CTLW0 & UCTXSTP);          // Wait for STOP if needed
     UCB0I2CSA = 0x40;                     // Slave address
 
@@ -35,6 +35,28 @@ void i2c_send(unsigned char data) {
     while (UCB0CTLW0 & UCTXSTP);         // Wait for STOP to finish
 }
 
+// Messqage send function (for lcd)
+void i2c_send_msg(const char *msg) {
+    while (UCB0CTLW0 & UCTXSTP);  // Wait for previous STOP
+
+    UCB0I2CSA = 0x40;             // Set slave address
+
+    int len = 0;
+    while (msg[len] != '\0') len++;  // Count characters
+
+    UCB0TBCNT = len;              // Set transmit byte count
+    UCB0CTLW0 |= UCTXSTT;         // Generate START
+
+    int i;
+    for (i = 0; i < len; i++) {
+        while (!(UCB0IFG & UCTXIFG0));  // Wait for TXBUF ready
+        UCB0TXBUF = msg[i];            // Send character
+    }
+
+    while (UCB0CTLW0 & UCTXSTP);  // Wait for STOP to complete
+}
+
+
 int main(void) {
     WDTCTL = WDTPW | WDTHOLD;            // Stop watchdog timer
     PM5CTL0 &= ~LOCKLPM5;                // Enable GPIOs
@@ -44,9 +66,13 @@ int main(void) {
     i2c_master_setup();                  // Setup I2C master
     __delay_cycles(10000);               // Short delay before sending
 
-    i2c_send("Hello\n");                      // Send one byte to slave
+    //i2c_send_int(1);
+    //__delay_cycles(1000000);
+    //i2c_send_int(1);
+
+    i2c_send_msg("Hello\n");                      // Send one byte to slave
     __delay_cycles(1000000);
-    i2c_send("Goodbye\n");             
+    i2c_send_msg("Goodbye\n");             
 
     while (1);                           // Loop forever (done)
 }
