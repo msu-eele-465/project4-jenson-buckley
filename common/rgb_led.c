@@ -52,7 +52,7 @@ void setupRGBLED(void) {
     TB3CTL |= TBCLR;            // reset settings
     TB3CTL |= TBSSEL__SMCLK;    
     TB3CTL |= MC__UP;
-    TB3CCR0 = 2;                // period (steps counter each time)
+    TB3CCR0 = 100;                // period (steps counter each time)
     TB3CCTL0 |= CCIE;           // Enable capture compare
     TB3CCTL0 &= ~CCIFG;         // Clear IFG
 }
