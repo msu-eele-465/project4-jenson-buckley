@@ -1,6 +1,5 @@
 #include <msp430fr2355.h>
 #include <stdbool.h>
-#include "i2c.h"
 #include "keypad.h"
 #include "rgb_led.h"
 
@@ -24,12 +23,9 @@ int bPWM;
 int countPWM;
 void updateHex(int);
 
-// Setup I2C Master on P1.2 (SDA) and P1.3 (SCL)
-char tx_buff[100] = {0};
-unsigned int index;
-unsigned int message_length;
+// Device Addresses
 #define SA_LEDBAR 0x55
-#define SA_LCD 0x55
+#define SA_LCD 0x40
 
 // Setup keypad
 char lastKey = 'X';
@@ -42,16 +38,56 @@ char lastKey = 'X';
 // 4    Unlocked
 int state = 0;
 
+// I2C Master Setup
+void i2c_master_setup(){
+    UCB0CTLW0 |= UCSWRST;   // Hold USCI in reset
+
+    //-- Setup I2C Pins
+    P1SEL1 &= ~(BIT2 | BIT3);   
+    P1SEL0 |=  (BIT2 | BIT3);             
+
+    //-- Configure I2C
+    UCB0CTLW0 = UCSWRST | UCSSEL_3 | UCMODE_3 | UCMST | UCTR | UCSYNC; // SMCLK, I2C master, Tx mode
+    UCB0BRW = 10;                   // SCL = SMCLK / 10 = 100kHz
+
+    UCB0CTLW1 = UCASTP_2;           // Auto STOP after TBCNT bytes
+
+    PM5CTL0 &= ~LOCKLPM5;           // Enable GPIOs
+
+    UCB0CTLW0 &= ~UCSWRST;          // Release from reset
+
+    __delay_cycles(10000);          // Setup settle delay
+}
+
+// I2C Send Function (1 byte to slave address 0x40)
+void i2c_send(unsigned char address, unsigned char data) {
+    while (UCB0CTLW0 & UCTXSTP);    // Wait for STOP if needed
+    UCB0I2CSA = address;            // Slave address
+
+    UCB0TBCNT = 1;                  // Transmit 1 byte
+    UCB0CTLW0 |= UCTXSTT;           // Generate START
+
+    while (!(UCB0IFG & UCTXIFG0));  // Wait for TX buffer ready
+    UCB0TXBUF = data;               // Send data
+
+    while (UCB0CTLW0 & UCTXSTP);    // Wait for STOP to finish
+}
+
+// Update RGB color
+void updateHex(int hex_code) {
+    rPWM = 0xFF & (hex_code >> 4);
+    gPWM = 0xFF & (hex_code >> 2);
+    bPWM = 0xFF & hex_code;
+}
+
 int main(void)
 {
     // Stop watchdog timer
-    WDTCTL = WDTPW | WDTHOLD;
+    WDTCTL = WDTPW | WDTHOLD;   // Disable low-power mode 
+    
+    PM5CTL0 &= ~LOCKLPM5;       // GPIO high-impedance
 
-    P1OUT &= ~BIT0;
-    P1DIR |= BIT0;
-
-    // Disable low-power mode / GPIO high-impedance
-    PM5CTL0 &= ~LOCKLPM5;
+    __delay_cycles(50000);      // Power-on delay
 
     // Setup
     rPWM = 0;
@@ -60,16 +96,14 @@ int main(void)
     countPWM = 0;
     index = 0;
     message_length = 1;
+
+    i2c_master_setup();
     setupRGBLED();
     setupKeypad();
-    setupMasterI2C();
     char message[] = {0x0};
 
     while (true)
     {
-        P1OUT ^= BIT0;
-        message[0] = 9;
-        Tx(SA_LEDBAR, message, tx_buff, &message_length);
 
         char key_val = readKeypad(lastKey);
 
@@ -174,20 +208,6 @@ int main(void)
     }
 }
 
-void updateHex(int hex_code) {
-    rPWM = 0xFF & (hex_code >> 4);
-    gPWM = 0xFF & (hex_code >> 2);
-    bPWM = 0xFF & hex_code;
-}
-
-// I2C MASTER
-#pragma vector=EUSCI_B0_VECTOR
-__interrupt void EUSCI_B0_I2C_ISR(void) {
-    UCB0TXBUF = tx_buff[index];     // runs when TX is ready for data
-                                    // happens when ACK is received
-    if (index < message_length - 1) { index++; }
-    else { index = 0; }
-}
 
 // RGB LED PWM Control
 #pragma vector = TIMER3_B0_VECTOR

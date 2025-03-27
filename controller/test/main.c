@@ -44,9 +44,9 @@ int main(void) {
     i2c_master_setup();                  // Setup I2C master
     __delay_cycles(10000);               // Short delay before sending
 
-    i2c_send(0x02);                      // Send one byte to slave
+    i2c_send("Hello\n");                      // Send one byte to slave
     __delay_cycles(1000000);
-    i2c_send(0x03);             
+    i2c_send("Goodbye\n");             
 
     while (1);                           // Loop forever (done)
 }

@@ -5,7 +5,10 @@
 #define LCD_RW BIT1     // Read/Write
 #define LCD_E  BIT2     // Enable
 #define LCD_DATA P2OUT  // Data bus on Port 1
+#define MAX_MSG_LEN 16
 
+volatile char message_buffer[MAX_MSG_LEN];
+volatile unsigned char msg_index = 0;
 volatile unsigned char received_data = 0;
 
 
@@ -27,7 +30,7 @@ void lcd_write_command(unsigned char cmd) {
     P3OUT &= ~LCD_RW;  // RW = 0 for write
     LCD_DATA = cmd;    // Write command to data bus
     lcd_enable_pulse();
-    delay(50);         // Command execution delay
+    delay(5);         // Command execution delay
 }
 
 // Data Write Function
@@ -36,7 +39,7 @@ void lcd_write_data(unsigned char data) {
     P3OUT &= ~LCD_RW;  // RW = 0 for write
     LCD_DATA = data;   // Write data to data bus
     lcd_enable_pulse();
-    delay(50);         // Data write delay
+    delay(5);         // Data write delay
 }
 
 // LCD Initialization
@@ -107,33 +110,19 @@ int main(void) {
 // I2C Interrupt Service Routine
 #pragma vector=EUSCI_B0_VECTOR
 __interrupt void EUSCI_B0_I2C_ISR(void) {
-    received_data = UCB0RXBUF; // Read received byte
-    
-    lcd_clear();  // Clear LCD
-    switch (received_data) {
-        case 0:
-            lcd_display_string("Static");
-            break;
-        case 1:
-            lcd_display_string("Toggle");
-            break;
-        case 2:
-            lcd_display_string("Up Counter");
-            break;
-        case 3:
-            lcd_display_string("In and Out");
-            break;
-        case 4:
-            lcd_display_string("Down Counter");
-            break;
-        case 5:
-            lcd_display_string("Rotate Left");
-            break;
-        case 6:
-            lcd_display_string("Rotate 7 Right");
-            break;
-        default:
-            lcd_display_string("Invalid Input");
-            break;
+    char c = UCB0RXBUF;
+
+    if (c == '\n') {
+        // End of message, null-terminate and display
+        message_buffer[msg_index] = '\0';
+        lcd_clear();
+        lcd_display_string((char *)message_buffer);
+        msg_index = 0;  // Reset for next message
+    } else {
+        if (msg_index < MAX_MSG_LEN - 1) {
+            message_buffer[msg_index++] = c;
+        } else {
+            msg_index = 0; // reset if too long
+        }
     }
 }
