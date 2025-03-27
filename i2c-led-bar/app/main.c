@@ -218,6 +218,19 @@ __interrupt void ISR_TB3_CCR0(void)
 #pragma vector=EUSCI_B0_VECTOR
 __interrupt void EUSCI_B0_I2C_ISR(void) {
     received_data = UCB0RXBUF; // Read received byte
+
+    // if a pattern is received...
+    if (received_data < 8) {
+        // save previous state
+        stepOldIndex[prev_pattern] = stepIndex;
+        if (prev_pattern != received_data) {
+            stepIndex = stepOldIndex[received_data];
+        } else {
+            stepIndex = 0;
+        }
+        // update prev pattern
+        prev_pattern = received_data;
+    }
     setPattern(received_data);
     delay = 10000;
     count = 0;
