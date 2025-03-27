@@ -2,6 +2,9 @@
 #include <msp430fr2310.h>
 #include <stdbool.h>
 
+//i2c varibles
+int received_data;
+
 // Led Variables
 int stepIndex = 0;      // Current step index
 int stepOldIndex[] = {0, 0, 0, 0, 0, 0, 0, 0};   // last index for each pattern
@@ -56,41 +59,26 @@ unsigned char stepSequence[] = {
                 0b0
             };
 
-// I2C Slave on P1.3 (SCL) and P1.2 (SDA)
-unsigned int RX_BUFF_SIZE = 1;
-char Received[] = {0x0};
-unsigned int Data_Cnt = 0;
+void i2c_slave_setup() {
+    UCB0CTLW0 |= UCSWRST;       // Software reset
 
-int main(void)
-{
-    // Stop watchdog timer
-    WDTCTL = WDTPW | WDTHOLD;
+    // Configure pins P1.2 (SDA) and P1.3 (SCL)
+    P1SEL1 &= ~(BIT2 | BIT3);   // Clear bits in SEL1
+    P1SEL0 |= (BIT2 | BIT3);    // Set bits in SEL0
 
-    // heartbeat on P2.0
-    P2OUT &= ~BIT0;
-    P2DIR |= BIT0;
+    __delay_cycles(10000);
 
-    // Disable low-power mode / GPIO high-impedance
-    PM5CTL0 &= ~LOCKLPM5;
+    UCB0CTLW0 = UCSWRST | UCMODE_3 | UCSYNC;   // I2C mode, sync, hold in reset
+    UCB0CTLW0 &= ~UCMST;        // Slave mode
+    UCB0I2COA0 = 0x40 | UCOAEN; // Own address + enable
+    UCB0CTLW1 = 0;              // No auto STOP
+    UCB0CTLW0 &= ~UCTR;         // Receiver mode
 
-    // enable interrupts
-    __enable_interrupt();
+    __delay_cycles(10000);      // Wait before releasing reset
 
-    //-- Setup patterns
-    setupLeds(); // NOTE: this doesn't seem to work if the LED bar is hooked up, so just pull it out, let it setup the pins, the drop it back in
-    setPattern(7);
+    UCB0CTLW0 &= ~UCSWRST;      // Exit reset
 
-    // setup I2C Slave with SA=0x55
-    setupSlaveI2C(0x55, RX_BUFF_SIZE);
-
-
-    while (true)
-    {
-        P2OUT ^= BIT0;
-
-        // Delay for 100000*(1/MCLK)=0.1s
-        __delay_cycles(100000);
-    }
+    UCB0IE |= UCRXIE0;          // Enable receive interrupt
 }
 
 void setupLeds() {
@@ -158,32 +146,33 @@ void setPattern(int a) {
     
 }
 
-/*
-Setup a 100kHz I2C slave on P1.3 (SCL) and P1.2 (SDA). Pass slave address (7 bits) and number of bytes to receive per Rx.
-Note the message length is NOT set.
-*/
-void setupSlaveI2C(int slave_addr, int bytes) {
-    UCB0CTLW0 |= UCSWRST;       // put into SW reset
+int main(void)
+{
+    WDTCTL = WDTPW | WDTHOLD;            // Stop watchdog timer
+    PM5CTL0 &= ~LOCKLPM5;                // Enable GPIOs
 
-    UCB0CTLW0 |= UCMODE_3;      // put into I2C mode
-    UCB0CTLW0 &= ~UCMST;        // put into slave mode
-    UCB0CTLW0 |= UCMODE0;       // put into slave mode
-    UCB0CTLW0 |= UCSYNC;        // put into slave mode
-    UCB0CTLW0 &= ~UCTR;         // put into rx mode
-    UCB0I2COA0 &= ~0x87FF;      // reset the slave address register (don't touch bits 14-11 since they are reserved)
-    UCB0I2COA0 |= slave_addr;   // set slave address
-    UCB0I2COA0 |= UCOAEN;       // enable interrupts for slave address
+    __delay_cycles(50000);               // Power-on delay
 
-    UCB0CTLW1 |= UCASTP_2;      // auto stop when UCB0TBCNT
-    UCB0TBCNT = bytes;          // receive all bytes of data
+    i2c_slave_setup();                  // Setup I2C master
 
-    P1SEL1 &=~ BIT3;    // P1.3 = SCL
-    P1SEL0 |= BIT3;
-    P1SEL1 &=~ BIT2;    // P1.2 = SDA
-    P1SEL0 |= BIT2;
+    // heartbeat on P2.0
+    P2OUT &= ~BIT0;
+    P2DIR |= BIT0;
 
-    UCB0CTLW0 &= ~UCSWRST;       // take out of SW reset
-    UCB0IE |= UCRXIE0;          // enable Rx interrupts
+    //-- Setup patterns
+    setupLeds(); // NOTE: this doesn't seem to work if the LED bar is hooked up, so just pull it out, let it setup the pins, the drop it back in
+    setPattern(7);
+
+     // enable interrupts
+    __enable_interrupt();
+
+
+    while (true)
+    {   
+        // Heartbeat Led
+        P2OUT ^= BIT0;
+        __delay_cycles(100000);
+    }
 }
 
 // Timer for Led bar
@@ -204,16 +193,10 @@ __interrupt void ISR_TB3_CCR0(void)
     TB1CCTL0 &= ~CCIFG;  // clear CCR0 IFG
 }
 
+// I2C Interrupt Service Routine
 #pragma vector=EUSCI_B0_VECTOR
 __interrupt void EUSCI_B0_I2C_ISR(void) {
-    // only for RXIFG0
-    if (UCB0IV & USCI_I2C_UCRXIFG0) {
-        Received[Data_Cnt] = UCB0RXBUF; // fill buffer
-        if (Data_Cnt < sizeof(Received) - 1) {
-            Data_Cnt++;
-        } else {
-            Data_Cnt = 0;
-        }
-        setPattern(Received[0]);
-    }
+    received_data = UCB0RXBUF; // Read received byte
+    setPattern(received_data);
+    
 }

@@ -59,18 +59,39 @@ void i2c_master_setup(){
     __delay_cycles(10000);          // Setup settle delay
 }
 
-// I2C Send Function (1 byte to slave address 0x40)
-void i2c_send(unsigned char address, unsigned char data) {
-    while (UCB0CTLW0 & UCTXSTP);    // Wait for STOP if needed
-    UCB0I2CSA = address;            // Slave address
+// Integer send function (for led bar)
+void i2c_send_int(unsigned char data) {
+    while (UCB0CTLW0 & UCTXSTP);          // Wait for STOP if needed
+    UCB0I2CSA = 0x40;                     // Slave address
 
-    UCB0TBCNT = 1;                  // Transmit 1 byte
-    UCB0CTLW0 |= UCTXSTT;           // Generate START
+    UCB0TBCNT = 1;                        // Transmit 1 byte
+    UCB0CTLW0 |= UCTXSTT;                // Generate START
 
-    while (!(UCB0IFG & UCTXIFG0));  // Wait for TX buffer ready
-    UCB0TXBUF = data;               // Send data
+    while (!(UCB0IFG & UCTXIFG0));       // Wait for TX buffer ready
+    UCB0TXBUF = data;                    // Send data
 
-    while (UCB0CTLW0 & UCTXSTP);    // Wait for STOP to finish
+    while (UCB0CTLW0 & UCTXSTP);         // Wait for STOP to finish
+}
+
+// Messqage send function (for lcd)
+void i2c_send_msg(const char *msg) {
+    while (UCB0CTLW0 & UCTXSTP);  // Wait for previous STOP
+
+    UCB0I2CSA = 0x40;             // Set slave address
+
+    int len = 0;
+    while (msg[len] != '\0') len++;  // Count characters
+
+    UCB0TBCNT = len;              // Set transmit byte count
+    UCB0CTLW0 |= UCTXSTT;         // Generate START
+
+    int i;
+    for (i = 0; i < len; i++) {
+        while (!(UCB0IFG & UCTXIFG0));  // Wait for TXBUF ready
+        UCB0TXBUF = msg[i];            // Send character
+    }
+
+    while (UCB0CTLW0 & UCTXSTP);  // Wait for STOP to complete
 }
 
 // Update RGB color
