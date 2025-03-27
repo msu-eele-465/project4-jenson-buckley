@@ -1,5 +1,6 @@
 #include <msp430fr2355.h>
 #include <stdbool.h>
+#include "intrinsics.h"
 #include "keypad.h"
 #include "rgb_led.h"
 
@@ -9,12 +10,12 @@
 #define RGB_UNLOCKED 0x00FF00
 #define RGB_PAT0 0x808080
 #define RGB_PAT1 0xF0F0F0
-#define RGB_PAT2 0xF0F0F0
-#define RGB_PAT3 0x808080
-#define RGB_PAT4 0xF0F0F0
-#define RGB_PAT5 0x808080
-#define RGB_PAT6 0xF0F0F0
-#define RGB_PAT7 0x808080
+#define RGB_PAT2 0xF0F000
+#define RGB_PAT3 0x808000
+#define RGB_PAT4 0xF000F0
+#define RGB_PAT5 0x800080
+#define RGB_PAT6 0x00F0F0
+#define RGB_PAT7 0x008080
 
 // Setup RGB LED
 int rPWM;
@@ -104,6 +105,8 @@ int main(void)
     
     PM5CTL0 &= ~LOCKLPM5;       // GPIO high-impedance
 
+    __enable_interrupt();       // enable interrupts
+
     __delay_cycles(50000);      // Power-on delay
 
     // Setup
@@ -111,28 +114,25 @@ int main(void)
     gPWM = 0;
     bPWM = 0;
     countPWM = 0;
-    index = 0;
-    message_length = 1;
 
     i2c_master_setup();
     setupRGBLED();
     setupKeypad();
     char message[] = {0x0};
 
+    i2c_send_int(9);        // initialze LED bar to off
+    //i2c_send_msg("\n");     // initialze LCD to off
+    updateHex(RGB_LOCKED);  // RGB LED to locked color
+
     while (true)
     {
-
+        
         char key_val = readKeypad(lastKey);
 
         if (key_val != 'X') {
             
             if (state == 0) {
-                // DAVID: this is how you use i2c commands
-                // 86 sending the key press just send the pattern
-                // Also 86 sending the base period
-                // Also 86 changing curson blink (I suck but did some things to get extra credit)
-                i2c_send_int(0)          // Sets pattern to 0 on led bar         
-                i2c_send_msg("Static\n") // Sends messag eto lcd needs /n, updates imediatly.
+                
                 if (key_val=='1') {
                     state = 1;
                     updateHex(RGB_UNLOCKING);
@@ -166,62 +166,73 @@ int main(void)
                 }
 
             } else if (state == 4) {
+                char keypress[] = {key_val, "\n"};
+                //i2c_send_msg(keypress);       // send key press
+
                 // lock
                 if (key_val=='D') { 
                     state = 0;
                     updateHex(RGB_LOCKED);
-                    // TODO: clear LCD command
-                    // TODO: clead patterns command
+                    //i2c_send_msg("\n");      // clear LCD
+                    i2c_send_int(9);        // clear LED bar
+                
+                // inc base period
+                } else if (key_val=='A') { 
+                    i2c_send_int(11);        // inc base period
 
+                } else if (key_val=='B') { 
+                    i2c_send_int(10);        // inc base period
+                
                 // otherwise
                 } else {
                     if (key_val=='0') {
                         // turn led bar to pattern 0
-                        message[0] = 0;
-                        Tx(SA_LEDBAR, message, tx_buff, &message_length);
+                        //i2c_send_msg("static\n");    // update LCD
+                        i2c_send_int(0);            // update LED bar
                         updateHex(RGB_PAT0);
                     } else if (key_val=='1') {
                         // turn led bar to pattern 1
-                        message[0] = 1;
-                        Tx(SA_LEDBAR, message, tx_buff, &message_length);
+                        //i2c_send_msg("toggle\n");    // update LCD
+                        i2c_send_int(1);            // update LED bar
                         updateHex(RGB_PAT1);
                     } else if (key_val=='2') {
                         // turn led bar to pattern 2
-                        message[0] = 2;
-                        Tx(SA_LEDBAR, message, tx_buff, &message_length);
+                        //i2c_send_msg("up counter\n");    // update LCD
+                        i2c_send_int(2);            // update LED bar
                         updateHex(RGB_PAT2);
                     } else if (key_val=='3') {
                         // turn led bar to pattern 3
                         message[0] = 3;
-                        Tx(SA_LEDBAR, message, tx_buff, &message_length);
+                        //i2c_send_msg("in and out\n");    // update LCD
+                        i2c_send_int(3);            // update LED bar
                         updateHex(RGB_PAT3);
                     } else if (key_val=='4') {
                         // turn led bar to pattern 4
-                        message[0] = 4;
-                        Tx(SA_LEDBAR, message, tx_buff, &message_length);
+                        //i2c_send_msg("down counter\n");    // update LCD
+                        i2c_send_int(4);            // update LED bar
                         updateHex(RGB_PAT4);
                     } else if (key_val=='5') {
                         // turn led bar to pattern 5
-                        message[0] = 5;
-                        Tx(SA_LEDBAR, message, tx_buff, &message_length);
+                        //i2c_send_msg("ritate 1 left\n");    // update LCD
+                        i2c_send_int(5);            // update LED bar
                         updateHex(RGB_PAT5);
                     } else if (key_val=='6') {
                         // turn led bar to pattern 6
-                        message[0] = 6;
-                        Tx(SA_LEDBAR, message, tx_buff, &message_length);
+                        //i2c_send_msg("rotate 7 right\n");    // update LCD
+                        i2c_send_int(6);            // update LED bar
                         updateHex(RGB_PAT6);
                     } else if (key_val=='7') {
                         // turn led bar to pattern 7
-                        message[0] = 7;
-                        Tx(SA_LEDBAR, message, tx_buff, &message_length);
+                        //i2c_send_msg("fill left\n");    // update LCD
+                        i2c_send_int(7);            // update LED bar
                         updateHex(RGB_PAT7);
                     }
-                    // TODO: send key press to LCD
-                    // TODO: send key press to LED BAR
                 }
-                
+
             } else {
                 state = 0;
+                //i2c_send_msg("\n");      // clear LCD
+                i2c_send_int(9);        // clear LED bar
                 updateHex(RGB_LOCKED);
             }
         }
