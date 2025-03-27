@@ -6,6 +6,9 @@
 #define LCD_E  BIT2     // Enable
 #define LCD_DATA P2OUT  // Data bus on Port 1
 
+volatile unsigned char received_data = 0;
+
+
 // Delay Function
 void delay(unsigned int count) {
     while(count--) __delay_cycles(1000);
@@ -62,38 +65,40 @@ void lcd_clear(){
     delay(50);             // Delay for clear command
 }
 
-void i2c_slave_setup(){
-    WDTCTL = WDTPW | WDTHOLD;   // stop watchdog timer
+void i2c_slave_setup() {
+    UCB0CTLW0 |= UCSWRST;       // Software reset
 
-    UCB0CTLW0 |= UCSWRST;       // put eUSC_B0 into software reset
+    // Configure pins P1.2 (SDA) and P1.3 (SCL)
+    P1SEL1 &= ~(BIT2 | BIT3);   // Clear bits in SEL1
+    P1SEL0 |= (BIT2 | BIT3);    // Set bits in SEL0
 
-    UCB0CTLW0 |= UCMODE_3;      // put into I2C mode
-    UCB0CTLW0 &= ~UCMST;        // put into slave mode
-    UCB0I2COA0 = 0x0040;        // define slave address
-    UCB0I2COA0 |= UCOAEN;       // enable slave address
-    UCB0CTLW0 &= ~UCTR;         // put into Rx mode
-    UCB0CTLW1 &= ~UCASTP0;      // disable automatic stop condition
-    UCB0CTLW1 &= ~UCASTP1;
+    __delay_cycles(10000);
 
-    //-- Setup P1.3 as SCL and P1.2 as SDA
-    P1SEL1 &= ~BIT3;            // SCL
-    P1SEL0 |= BIT3;
+    UCB0CTLW0 = UCSWRST | UCMODE_3 | UCSYNC;   // I2C mode, sync, hold in reset
+    UCB0CTLW0 &= ~UCMST;        // Slave mode
+    UCB0I2COA0 = 0x40 | UCOAEN; // Own address + enable
+    UCB0CTLW1 = 0;              // No auto STOP
+    UCB0CTLW0 &= ~UCTR;         // Receiver mode
 
-    P1SEL1 &= ~BIT2;            // SDA
-    P1SEL0 |= BIT2;
+    __delay_cycles(10000);      // Wait before releasing reset
 
-    PM5CTL0 &= ~LOCKLPM5;       // Turn on GPIO
+    UCB0CTLW0 &= ~UCSWRST;      // Exit reset
 
-    UCB0CTLW0 &= ~UCSWRST;      // take out of SW reset
-
-    UCB0IE |= UCRXIE0;          // enable Rx interrupt
+    UCB0IE |= UCRXIE0;          // Enable receive interrupt
 }
 
 // Main Program
 int main(void) {
+    WDTCTL = WDTPW | WDTHOLD;   // stop watchdog timer
+
+    PM5CTL0 &= ~LOCKLPM5;       // Turn on GPIO
+
+    __delay_cycles(50000);      // Wait ~50ms after power-up
     i2c_slave_setup();          // Setup I2C
     lcd_init();                 // Initialize LCD
     __enable_interrupt();       // Enable global iunterupts
+
+    lcd_display_string("Ready");
 
     while (1) {
     }
@@ -102,7 +107,7 @@ int main(void) {
 // I2C Interrupt Service Routine
 #pragma vector=EUSCI_B0_VECTOR
 __interrupt void EUSCI_B0_I2C_ISR(void) {
-    int received_data = UCB0RXBUF; // Read received byte
+    received_data = UCB0RXBUF; // Read received byte
     
     lcd_clear();  // Clear LCD
     switch (received_data) {
