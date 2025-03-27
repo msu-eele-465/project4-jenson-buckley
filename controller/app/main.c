@@ -1,84 +1,272 @@
-/* --COPYRIGHT--,BSD_EX
- * Copyright (c) 2016, Texas Instruments Incorporated
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * *  Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * *  Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * *  Neither the name of Texas Instruments Incorporated nor the names of
- *    its contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
- * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
- * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *******************************************************************************
- *
- *                       MSP430 CODE EXAMPLE DISCLAIMER
- *
- * MSP430 code examples are self-contained low-level programs that typically
- * demonstrate a single peripheral function or device feature in a highly
- * concise manner. For this the code may rely on the device's power-on default
- * register values and settings such as the clock configuration and care must
- * be taken when combining code from several examples to avoid potential side
- * effects. Also see www.ti.com/grace for a GUI- and www.ti.com/msp430ware
- * for an API functional library-approach to peripheral configuration.
- *
- * --/COPYRIGHT--*/
-//******************************************************************************
-//  MSP430FR235x Demo - Toggle P1.0 using software
-//
-//  Description: Toggle P1.0 every 0.1s using software.
-//  By default, FR235x select XT1 as FLL reference.
-//  If XT1 is present, the PxSEL(XIN & XOUT) needs to configure.
-//  If XT1 is absent, switch to select REFO as FLL reference automatically.
-//  XT1 is considered to be absent in this example.
-//  ACLK = default REFO ~32768Hz, MCLK = SMCLK = default DCODIV ~1MHz.
-//
-//           MSP430FR2355
-//         ---------------
-//     /|\|               |
-//      | |               |
-//      --|RST            |
-//        |           P1.0|-->LED
-//
-//   Cash Hao
-//   Texas Instruments Inc.
-//   November 2016
-//   Built with IAR Embedded Workbench v6.50.0 & Code Composer Studio v6.2.0
-//******************************************************************************
-#include <msp430.h>
+#include <msp430fr2355.h>
+#include <stdbool.h>
+#include "intrinsics.h"
+#include "keypad.h"
+#include "rgb_led.h"
+
+// RGB LED colors
+#define RGB_LOCKED 0xFF0000
+#define RGB_UNLOCKING 0x0000FF
+#define RGB_UNLOCKED 0x00FF00
+#define RGB_PAT0 0x808080
+#define RGB_PAT1 0xF0F0F0
+#define RGB_PAT2 0xF0F000
+#define RGB_PAT3 0x808000
+#define RGB_PAT4 0xF000F0
+#define RGB_PAT5 0x800080
+#define RGB_PAT6 0x00F0F0
+#define RGB_PAT7 0x008080
+
+// Setup RGB LED
+int rPWM;
+int gPWM;
+int bPWM;
+int countPWM;
+void updateHex(int);
+
+// Setup keypad
+char lastKey = 'X';
+
+// STATE
+// 0    Locked
+// 1    First correct digit entered
+// 2    Second
+// 3    Third
+// 4    Unlocked
+int state = 0;
+
+// I2C Master Setup
+void i2c_master_setup(){
+    UCB0CTLW0 |= UCSWRST;   // Hold USCI in reset
+
+    //-- Setup I2C Pins
+    P1SEL1 &= ~(BIT2 | BIT3);   
+    P1SEL0 |=  (BIT2 | BIT3);             
+
+    //-- Configure I2C
+    UCB0CTLW0 = UCSWRST | UCSSEL_3 | UCMODE_3 | UCMST | UCTR | UCSYNC; // SMCLK, I2C master, Tx mode
+    UCB0BRW = 10;                   // SCL = SMCLK / 10 = 100kHz
+
+    UCB0CTLW1 = UCASTP_2;           // Auto STOP after TBCNT bytes
+
+    PM5CTL0 &= ~LOCKLPM5;           // Enable GPIOs
+
+    UCB0CTLW0 &= ~UCSWRST;          // Release from reset
+
+    __delay_cycles(10000);          // Setup settle delay
+}
+
+// Integer send function (for led bar)
+void i2c_send_int(unsigned char data) {
+    while (UCB0CTLW0 & UCTXSTP);          // Wait for STOP if needed
+    UCB0I2CSA = 0x45;                     // Slave address
+
+    UCB0TBCNT = 1;                        // Transmit 1 byte
+    UCB0CTLW0 |= UCTXSTT;                // Generate START
+
+    while (!(UCB0IFG & UCTXIFG0));       // Wait for TX buffer ready
+    UCB0TXBUF = data;                    // Send data
+
+    while (UCB0CTLW0 & UCTXSTP);         // Wait for STOP to finish
+}
+
+// Messqage send function (for lcd)
+void i2c_send_msg(const char *msg) {
+    while (UCB0CTLW0 & UCTXSTP);  // Wait for previous STOP
+
+    UCB0I2CSA = 0x40;             // Set slave address
+
+    int len = 0;
+    while (msg[len] != '\0') len++;  // Count characters
+
+    UCB0TBCNT = len;              // Set transmit byte count
+    UCB0CTLW0 |= UCTXSTT;         // Generate START
+
+    int i;
+    for (i = 0; i < len; i++) {
+        while (!(UCB0IFG & UCTXIFG0));  // Wait for TXBUF ready
+        UCB0TXBUF = msg[i];            // Send character
+    }
+
+    while (UCB0CTLW0 & UCTXSTP);  // Wait for STOP to complete
+}
+
+// Update RGB color
+void updateHex(int hex_code) {
+    rPWM = 0xFF & (hex_code >> 4);
+    gPWM = 0xFF & (hex_code >> 2);
+    bPWM = 0xFF & hex_code;
+}
 
 int main(void)
 {
-    WDTCTL = WDTPW | WDTHOLD;               // Stop watchdog timer
+    // Stop watchdog timer
+    WDTCTL = WDTPW | WDTHOLD;   // Disable low-power mode 
     
-    P1OUT &= ~BIT0;                         // Clear P1.0 output latch for a defined power-on state
-    P1DIR |= BIT0;                          // Set P1.0 to output direction
+    PM5CTL0 &= ~LOCKLPM5;       // GPIO high-impedance
 
-    PM5CTL0 &= ~LOCKLPM5;                   // Disable the GPIO power-on default high-impedance mode
-                                            // to activate previously configured port settings
+    __enable_interrupt();       // enable interrupts
 
-    while(1)
+    __delay_cycles(50000);      // Power-on delay
+
+    // Setup
+    rPWM = 0;
+    gPWM = 0;
+    bPWM = 0;
+    countPWM = 0;
+
+    i2c_master_setup();
+    setupRGBLED();
+    setupKeypad();
+    char message[] = {0x0};
+
+    i2c_send_int(9);        // initialze LED bar to off
+    //i2c_send_msg("\n");     // initialze LCD to off
+    updateHex(RGB_LOCKED);  // RGB LED to locked color
+
+    while (true)
     {
-        P1OUT ^= BIT0;                      // Toggle P1.0 using exclusive-OR
-        __delay_cycles(100000);             // Delay for 100000*(1/MCLK)=0.1s
+        
+        char key_val = readKeypad(lastKey);
+
+        if (key_val != 'X') {
+            
+            if (state == 0) {
+                
+                if (key_val=='1') {
+                    state = 1;
+                    updateHex(RGB_UNLOCKING);
+                } else {
+                    state = 0;
+                }
+
+            } else if (state == 1) {
+                if (key_val=='1') {
+                    state = 2;
+                } else {
+                    state = 0;
+                    updateHex(RGB_LOCKED);
+                }
+
+            } else if (state == 2) {
+                if (key_val=='1') {
+                    state = 3;
+                } else {
+                    state = 0;
+                    updateHex(RGB_LOCKED);
+                }
+                
+            } else if (state == 3) {
+                if (key_val=='1') {
+                    state = 4;
+                    updateHex(RGB_UNLOCKED);
+                } else {
+                    state = 0;
+                    updateHex(RGB_LOCKED);
+                }
+
+            } else if (state == 4) {
+                char keypress[] = {key_val, "\n"};
+                //i2c_send_msg(keypress);       // send key press
+
+                // lock
+                if (key_val=='D') { 
+                    state = 0;
+                    updateHex(RGB_LOCKED);
+                    //i2c_send_msg("\n");      // clear LCD
+                    i2c_send_int(9);        // clear LED bar
+                
+                // inc base period
+                } else if (key_val=='A') { 
+                    i2c_send_int(11);        // inc base period
+
+                } else if (key_val=='B') { 
+                    i2c_send_int(10);        // inc base period
+                
+                // otherwise
+                } else {
+                    if (key_val=='0') {
+                        // turn led bar to pattern 0
+                        //i2c_send_msg("static\n");    // update LCD
+                        i2c_send_int(0);            // update LED bar
+                        updateHex(RGB_PAT0);
+                    } else if (key_val=='1') {
+                        // turn led bar to pattern 1
+                        //i2c_send_msg("toggle\n");    // update LCD
+                        i2c_send_int(1);            // update LED bar
+                        updateHex(RGB_PAT1);
+                    } else if (key_val=='2') {
+                        // turn led bar to pattern 2
+                        //i2c_send_msg("up counter\n");    // update LCD
+                        i2c_send_int(2);            // update LED bar
+                        updateHex(RGB_PAT2);
+                    } else if (key_val=='3') {
+                        // turn led bar to pattern 3
+                        message[0] = 3;
+                        //i2c_send_msg("in and out\n");    // update LCD
+                        i2c_send_int(3);            // update LED bar
+                        updateHex(RGB_PAT3);
+                    } else if (key_val=='4') {
+                        // turn led bar to pattern 4
+                        //i2c_send_msg("down counter\n");    // update LCD
+                        i2c_send_int(4);            // update LED bar
+                        updateHex(RGB_PAT4);
+                    } else if (key_val=='5') {
+                        // turn led bar to pattern 5
+                        //i2c_send_msg("ritate 1 left\n");    // update LCD
+                        i2c_send_int(5);            // update LED bar
+                        updateHex(RGB_PAT5);
+                    } else if (key_val=='6') {
+                        // turn led bar to pattern 6
+                        //i2c_send_msg("rotate 7 right\n");    // update LCD
+                        i2c_send_int(6);            // update LED bar
+                        updateHex(RGB_PAT6);
+                    } else if (key_val=='7') {
+                        // turn led bar to pattern 7
+                        //i2c_send_msg("fill left\n");    // update LCD
+                        i2c_send_int(7);            // update LED bar
+                        updateHex(RGB_PAT7);
+                    }
+                }
+
+            } else {
+                state = 0;
+                //i2c_send_msg("\n");      // clear LCD
+                i2c_send_int(9);        // clear LED bar
+                updateHex(RGB_LOCKED);
+            }
+        }
     }
+}
+
+
+// RGB LED PWM Control
+#pragma vector = TIMER3_B0_VECTOR
+__interrupt void ISR_PWM_PERIOD(void)
+{
+    // update outputs
+    if (countPWM > rPWM) {
+        P1OUT &= ~BIT5;
+    } else {
+        P1OUT |= BIT5;
+    }
+    if (countPWM > gPWM) {
+        P1OUT &= ~BIT6;
+    } else {
+        P1OUT |= BIT6;
+    }
+    if (countPWM > bPWM) {
+        P1OUT &= ~BIT7;
+    } else {
+        P1OUT |= BIT7;
+    }
+    // update count
+    if (countPWM > 255) {
+        countPWM = 0;
+    } else {
+        countPWM += 1;
+    }
+
+    // clear CCR0 IFG
+    TB3CCTL0 &= ~CCIFG;
 }

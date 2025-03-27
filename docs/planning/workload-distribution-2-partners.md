@@ -19,7 +19,7 @@ You will fill out this form:
 | LCD peripheral high-level flowchart                                                                      | 1      |           |           |
 | Professional demo                                                                                        | 2      |           |           |
 | **LED Patterns**                                                                                         |        |           |           |
-| LED patterns work correctly                                                                              | 1      |           |           |
+| LED patterns work correctly                                                                              | 1      | 1         |           |
 | **LCD Display**                                                                                          |        |           |           |
 | LCD is blank when the system is locked                                                                   | 0.5    |           |           |
 | LCD displays current keypress when unlocked                                                              | 1      |           |           |
@@ -27,14 +27,14 @@ You will fill out this form:
 | Pressing “C” toggles the cursor state (on or off)                                                        | 1      |           |           |
 | Pressing “9” toggles the cursor’s blink state (blinking or not blinking)                                 | 1      |           |           |
 | **Main controller**                                                                                      |        |           |           |
-| System must have a status indicator that indicates whether system is locked, being unlocked, or unlocked | 0.5    |           |           |
-| The system should respond quickly to a key press                                                         | 1      |           |           |
-| The system must communicate to the LED peripheral when a pattern button is pressed                       | 2      |           |           |
-| The system must communicate to the LCD peripheral when any key is pressed                                | 2      |           |           |
+| System must have a status indicator that indicates whether system is locked, being unlocked, or unlocked | 0.5    | .5        |           |
+| The system should respond quickly to a key press                                                         | 1      | 1         |           |
+| The system must communicate to the LED peripheral when a pattern button is pressed                       | 2      | 2         |           |
+| The system must communicate to the LCD peripheral when any key is pressed                                | 2      | 2         |           |
 | **LED bar peripheral**                                                                                   |        |           |           |
-| Status indicator must indicate when the system has received data                                         | 0.25   |           |           |
-| Status indicator must indicate when the system has not received data for some time                       | 0.25   |           |           |
-| System must be controlled via i2c                                                                        | 2      |           |           |
+| Status indicator must indicate when the system has received data                                         | 0.25   | .25       |           |
+| Status indicator must indicate when the system has not received data for some time                       | 0.25   | .25       |           |
+| System must be controlled via i2c                                                                        | 2      | 2         |           |
 | **LCD peripheral**                                                                                       |        |           |           |
 | Status indicator must indicate when the system has received data                                         | 0.25   |           |           |
 | Status indicator must indicate when the system has not received data for some time                       | 0.25   |           |           |
@@ -61,10 +61,10 @@ The extra credit points are allotted to both partners. You don't need to formall
 | **LCD Display**                                                                                          |                     |
 | LCD displays the LED pattern base transition period                                                      | 1                   |
 | **Main controller**                                                                                      |                     |
-| The system must detect the key press within 0.25 s                                                       | 0.5                 |
+| The system must detect the key press within 0.25 s                                                       | **0.5**             |
 | **LED bar peripheral**                                                                                   |                     |
-| Extra credit: The system must complete the requested operation with 0.5 s of receiving the i2c command   | 0.5                 |
+| Extra credit: The system must complete the requested operation with 0.5 s of receiving the i2c command   | **0.5**             |
 | **LCD peripheral**                                                                                       |                     |
-| Extra credit: The system must complete the requested operation with 0.5 s of receiving the i2c command   | 0.5                 |
+| Extra credit: The system must complete the requested operation with 0.5 s of receiving the i2c command   | **0.5**             |
 | System must be able to write every character in the Character Font Table                                 | 0.5                 |
 | Extra credit: Create and display a custom character                                                      | 2                   |

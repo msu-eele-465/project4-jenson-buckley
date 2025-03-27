@@ -1,84 +1,128 @@
-/* --COPYRIGHT--,BSD_EX
- * Copyright (c) 2014, Texas Instruments Incorporated
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * *  Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * *  Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * *  Neither the name of Texas Instruments Incorporated nor the names of
- *    its contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
- * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
- * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *******************************************************************************
- *
- *                       MSP430 CODE EXAMPLE DISCLAIMER
- *
- * MSP430 code examples are self-contained low-level programs that typically
- * demonstrate a single peripheral function or device feature in a highly
- * concise manner. For this the code may rely on the device's power-on default
- * register values and settings such as the clock configuration and care must
- * be taken when combining code from several examples to avoid potential side
- * effects. Also see www.ti.com/grace for a GUI- and www.ti.com/msp430ware
- * for an API functional library-approach to peripheral configuration.
- *
- * --/COPYRIGHT--*/
-//******************************************************************************
-//  MSP430FR231x Demo - Toggle P1.0 using software
-//
-//  Description: Toggle P1.0 every 0.1s using software.
-//  By default, FR231x select XT1 as FLL reference.
-//  If XT1 is present, the PxSEL(XIN & XOUT) needs to configure.
-//  If XT1 is absent, switch to select REFO as FLL reference automatically.
-//  XT1 is considered to be absent in this example.
-//  ACLK = default REFO ~32768Hz, MCLK = SMCLK = default DCODIV ~1MHz.
-//
-//           MSP430FR231x
-//         ---------------
-//     /|\|               |
-//      | |               |
-//      --|RST            |
-//        |           P1.0|-->LED
-//
-//   Darren Lu
-//   Texas Instruments Inc.
-//   July 2015
-//   Built with IAR Embedded Workbench v6.30 & Code Composer Studio v6.1 
-//******************************************************************************
-#include <msp430.h>
+#include <msp430fr2355.h>
 
-int main(void)
-{
-    WDTCTL = WDTPW | WDTHOLD;               // Stop watchdog timer
+// Pin Definitions
+#define LCD_RS BIT0     // Register Select
+#define LCD_RW BIT1     // Read/Write
+#define LCD_E  BIT2     // Enable
+#define LCD_DATA P2OUT  // Data bus on Port 1
+#define MAX_MSG_LEN 32
 
-    P1OUT &= ~BIT0;                         // Clear P1.0 output latch for a defined power-on state
-    P1DIR |= BIT0;                          // Set P1.0 to output direction
+volatile char message_buffer[MAX_MSG_LEN];
+volatile unsigned char msg_index = 0;
+volatile unsigned char received_data = 0;
 
-    PM5CTL0 &= ~LOCKLPM5;                   // Disable the GPIO power-on default high-impedance mode
-                                            // to activate previously configured port settings
 
-    while(1)
-    {
-        P1OUT ^= BIT0;                      // Toggle P1.0 using exclusive-OR
-        __delay_cycles(100000);             // Delay for 100000*(1/MCLK)=0.1s
+// Delay Function
+void delay(unsigned int count) {
+    while(count--) __delay_cycles(1000);
+}
+
+// Enable Pulse
+void lcd_enable_pulse() {
+    P3OUT |= LCD_E;
+    delay(2);
+    P3OUT &= ~LCD_E;
+}
+
+// Command Write Function
+void lcd_write_command(unsigned char cmd) {
+    P3OUT &= ~LCD_RS;  // RS = 0 for command
+    P3OUT &= ~LCD_RW;  // RW = 0 for write
+    LCD_DATA = cmd;    // Write command to data bus
+    lcd_enable_pulse();
+    delay(5);         // Command execution delay
+}
+
+// Data Write Function
+void lcd_write_data(unsigned char data) {
+    P3OUT |= LCD_RS;   // RS = 1 for data
+    P3OUT &= ~LCD_RW;  // RW = 0 for write
+    LCD_DATA = data;   // Write data to data bus
+    lcd_enable_pulse();
+    delay(5);         // Data write delay
+}
+
+// LCD Initialization
+void lcd_init() {
+    P3DIR |= LCD_RS | LCD_RW | LCD_E;
+    P2DIR |= 0xFF;   // Set Port 1 as output for data bus
+
+    delay(50);    // Power-on delay
+
+    lcd_write_command(0x38); // Function set: 8-bit, 2 lines, 5x8 dots
+    lcd_write_command(0x0C); // Display ON, Cursor OFF
+    lcd_clear();
+    lcd_write_command(0x06); // Entry mode set: Increment cursor
+}
+
+// Display String on LCD
+void lcd_display_string(char *str) {
+    while(*str) {
+        lcd_write_data(*str++);
+    }
+}
+
+// Clear LCD
+void lcd_clear(){
+    lcd_write_command(0x01); // Clear display
+    delay(50);             // Delay for clear command
+}
+
+void i2c_slave_setup() {
+    UCB0CTLW0 |= UCSWRST;       // Software reset
+
+    // Configure pins P1.2 (SDA) and P1.3 (SCL)
+    P1SEL1 &= ~(BIT2 | BIT3);   // Clear bits in SEL1
+    P1SEL0 |= (BIT2 | BIT3);    // Set bits in SEL0
+
+    __delay_cycles(10000);
+
+    UCB0CTLW0 = UCSWRST | UCMODE_3 | UCSYNC;   // I2C mode, sync, hold in reset
+    UCB0CTLW0 &= ~UCMST;        // Slave mode
+    UCB0I2COA0 = 0x40 | UCOAEN; // Own address + enable
+    UCB0CTLW1 = 0;              // No auto STOP
+    UCB0CTLW0 &= ~UCTR;         // Receiver mode
+
+    __delay_cycles(10000);      // Wait before releasing reset
+
+    UCB0CTLW0 &= ~UCSWRST;      // Exit reset
+
+    UCB0IE |= UCRXIE0;          // Enable receive interrupt
+}
+
+// Main Program
+int main(void) {
+    WDTCTL = WDTPW | WDTHOLD;   // stop watchdog timer
+
+    PM5CTL0 &= ~LOCKLPM5;       // Turn on GPIO
+
+    __delay_cycles(50000);      // Wait ~50ms after power-up
+    i2c_slave_setup();          // Setup I2C
+    lcd_init();                 // Initialize LCD
+    __enable_interrupt();       // Enable global iunterupts
+
+    lcd_display_string("Ready");
+
+    while (1) {
+    }
+}
+
+// I2C Interrupt Service Routine
+#pragma vector=EUSCI_B0_VECTOR
+__interrupt void EUSCI_B0_I2C_ISR(void) {
+    char c = UCB0RXBUF;
+
+    if (c == '\n') {
+        // End of message, null-terminate and display
+        message_buffer[msg_index] = '\0';
+        lcd_clear();
+        lcd_display_string((char *)message_buffer);
+        msg_index = 0;  // Reset for next message
+    } else {
+        if (msg_index < MAX_MSG_LEN - 1) {
+            message_buffer[msg_index++] = c;
+        } else {
+            msg_index = 0; // reset if too long
+        }
     }
 }

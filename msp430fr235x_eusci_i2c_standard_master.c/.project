@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>controller</name>
+	<name>msp430fr235x_eusci_i2c_standard_master.c</name>
 	<comment></comment>
 	<projects>
 	</projects>
@@ -17,11 +17,4 @@
 		<nature>org.eclipse.cdt.managedbuilder.core.managedBuildNature</nature>
 		<nature>org.eclipse.cdt.core.ccnature</nature>
 	</natures>
-	<linkedResources>
-		<link>
-			<name>common</name>
-			<type>2</type>
-			<locationURI>PARENT-1-PROJECT_LOC/common</locationURI>
-		</link>
-	</linkedResources>
 </projectDescription>

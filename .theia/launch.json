@@ -1,0 +1,50 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "msp430fr235x_eusci_i2c_standard_master.c",
+            "type": "ccs-debug",
+            "request": "launch",
+            "projectInfo": {
+                "name": "msp430fr235x_eusci_i2c_standard_master.c",
+                "resourceId": "/msp430fr235x_eusci_i2c_standard_master.c"
+            }
+        },
+        {
+            "name": "BlinkLED_MSP-EXP430FR2355",
+            "type": "ccs-debug",
+            "request": "launch",
+            "projectInfo": {
+                "name": "BlinkLED_MSP-EXP430FR2355",
+                "resourceId": "/BlinkLED_MSP-EXP430FR2355"
+            }
+        },
+        {
+            "name": "controller",
+            "type": "ccs-debug",
+            "request": "launch",
+            "projectInfo": {
+                "name": "controller",
+                "resourceId": "/controller"
+            }
+        },
+        {
+            "name": "i2c-lcd",
+            "type": "ccs-debug",
+            "request": "launch",
+            "projectInfo": {
+                "name": "i2c-lcd",
+                "resourceId": "/i2c-lcd"
+            }
+        },
+        {
+            "name": "i2c-led-bar",
+            "type": "ccs-debug",
+            "request": "launch",
+            "projectInfo": {
+                "name": "i2c-led-bar",
+                "resourceId": "/i2c-led-bar"
+            }
+        }
+    ]
+}
