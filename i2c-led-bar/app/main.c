@@ -70,7 +70,7 @@ void i2c_slave_setup() {
 
     UCB0CTLW0 = UCSWRST | UCMODE_3 | UCSYNC;   // I2C mode, sync, hold in reset
     UCB0CTLW0 &= ~UCMST;        // Slave mode
-    UCB0I2COA0 = 0x40 | UCOAEN; // Own address + enable
+    UCB0I2COA0 = 0x45 | UCOAEN; // Own address + enable
     UCB0CTLW1 = 0;              // No auto STOP
     UCB0CTLW0 &= ~UCTR;         // Receiver mode
 
