@@ -1,3 +1,3 @@
-# I2C LCD application
+# Controller application
 
 The main application (`main.c` or similar) goes here.

@@ -1,9 +1,9 @@
-# I2C LCD
+# Main controller
 
-This folder is the CCS project for the I2C LCD.
+This folder is the CCS project for the controller.
 
 > [!IMPORTANT]
-> The `i2c-lcd` folder is the *CCS project*. This differs from previous projects where the `app` folder was the CCS project.
+> The `controller` folder is the *CCS project*. This differs from previous projects where the `app` folder was the CCS project.
 
 ## Project organization
 
@@ -19,7 +19,7 @@ This folder is the CCS project for the I2C LCD.
 
 ### 📄 Top-level files
 
-- [`lnk_msp430fr2310.cmd`](lnk_msp430fr2310.cmd): MSP430FR2310 linker file
+- [`lnk_msp430fr2355.cmd`](lnk_msp430fr2355.cmd): MSP430FR2355 linker file
 
 #### CCS project files
 

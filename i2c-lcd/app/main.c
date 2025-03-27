@@ -1,4 +1,4 @@
-#include <msp430fr2310.h>
+#include <msp430fr2355.h>
 #include <string.h>
 
 // Pin Definitions
