@@ -5,6 +5,9 @@
 //i2c varibles
 int received_data;
 
+int delay = 30000;       // delay for heartbeat
+int count = 0;          // how long heartbeat has been fast
+
 // Led Variables
 int stepIndex = 0;      // Current step index
 int stepOldIndex[] = {0, 0, 0, 0, 0, 0, 0, 0};   // last index for each pattern
@@ -98,6 +101,18 @@ void setupLeds() {
 
 void setPattern(int a) {
     switch (a) {
+        case 10:    // dec base period
+            if (basePeriod > 32) {
+                basePeriod -= 32;
+            }
+            break;
+
+        case 11:    // inc base period
+            if (basePeriod < 608) {
+                basePeriod += 32;
+            }
+            break;
+
         case 0:
             stepStart = 0;
             seqLength = 2;
@@ -133,9 +148,7 @@ void setPattern(int a) {
             patternMultiplier = 4;
         break;
 
-        case 2:
-        case 4:
-        case 9:
+        default:
             stepStart = 34;
             seqLength = 2;
             patternMultiplier = 4;
@@ -161,17 +174,25 @@ int main(void)
 
     //-- Setup patterns
     setupLeds(); // NOTE: this doesn't seem to work if the LED bar is hooked up, so just pull it out, let it setup the pins, the drop it back in
-    setPattern(7);
+    setPattern(9);
 
      // enable interrupts
     __enable_interrupt();
 
-
+    int n = 0;
     while (true)
     {   
-        // Heartbeat Led
         P2OUT ^= BIT0;
-        __delay_cycles(100000);
+        while(n < delay) {
+            n++;
+        }
+        n = 0;
+        if (count < 50) {
+            count ++;
+        } else {
+            count = 0;
+            delay = 30000;
+        }
     }
 }
 
@@ -198,5 +219,6 @@ __interrupt void ISR_TB3_CCR0(void)
 __interrupt void EUSCI_B0_I2C_ISR(void) {
     received_data = UCB0RXBUF; // Read received byte
     setPattern(received_data);
-    
+    delay = 10000;
+    count = 0;
 }
