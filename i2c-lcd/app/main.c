@@ -5,7 +5,7 @@
 #define LCD_RW BIT1     // Read/Write
 #define LCD_E  BIT2     // Enable
 #define LCD_DATA P2OUT  // Data bus on Port 1
-#define MAX_MSG_LEN 16
+#define MAX_MSG_LEN 32
 
 volatile char message_buffer[MAX_MSG_LEN];
 volatile unsigned char msg_index = 0;

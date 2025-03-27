@@ -66,9 +66,13 @@ int main(void) {
     i2c_master_setup();                  // Setup I2C master
     __delay_cycles(10000);               // Short delay before sending
 
+    //Example Integer Send for LED Bar
+
     //i2c_send_int(1);
     //__delay_cycles(1000000);
     //i2c_send_int(1);
+
+    //Example Message Send for LED Bar
 
     i2c_send_msg("Hello\n");                      // Send one byte to slave
     __delay_cycles(1000000);
